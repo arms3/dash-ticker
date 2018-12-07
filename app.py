@@ -1,14 +1,19 @@
+import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from fetch_price import fetch, get_tickers
 import dash_table
 from dash.dependencies import Input, Output
+import os
+from random import randint
 
 external_stylesheets = ['https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css',
                         'https://fonts.googleapis.com/css?family=Montserrat:\
                          400,700']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+server = flask.Flask(__name__)
+server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
+app = dash.Dash(__name__, server=server, external_stylesheets=external_stylesheets)
 df = fetch('AAPL')
 ticks = get_tickers()
 
@@ -68,4 +73,4 @@ def update_table(input_value):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.server.run(debug=True, threaded=True)
