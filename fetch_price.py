@@ -60,7 +60,7 @@ def fetch(ticker='AAPL'):
                 # Would be better to not set key in the first place
                 # Set remote cache, update used and delete less update_used
                 print('Updating redis cache')
-                r.set(tick, json.dumps(mjson))
+                r.set(tick, json.dumps(mjson), ex=60*60*12*2)  # expire keys after 2 days
                 used = update_used(tick)
                 clear_less_used(used)
 
