@@ -1,54 +1,70 @@
-import requests_cache
+import requests
 import os
 import pandas as pd
-import io
 import time
 import datetime
+import redis
+import json
 
+r = redis.from_url(os.environ.get("REDIS_URL"))
+print(r)
 
-API_KEY = os.environ.get('QUANDL_API_KEY')
-REDIS_URL = os.environ.get('REDIS_URL')
-params = {'api_key': API_KEY}
-url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.csv'
+def fetch(ticker='AAPL'):
+    API_KEY = os.environ.get('QUANDL_API_KEY')
+    params = {'api_key': API_KEY}
+    url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json'
 
-expire_after = datetime.timedelta(days=1)
-requests_cache.install_cache(expire_after=expire_after, backend='sqlite')
-# requests_cache.backends.RedisCache(connection=my_server)
-s = requests_cache.CachedSession()
-
-
-def make_throttle_hook(timeout=1.0):
-    """
-    Returns a response hook function which sleeps for `timeout` seconds if
-    response is not cached
-    """
-    def hook(response, *args, **kwargs):
-        if not getattr(response, 'from_cache', False):
-            print('sleeping')
-            time.sleep(timeout)
-        return response
-    return hook
-
-
-def fetch(ticker='AAPL,MSFT,GOOG'):
-    s.hooks = {'response': make_throttle_hook(1)}
-    requests_cache.core.remove_expired_responses()
     dfs = []
     for tick in ticker.split(','):
-        params['ticker'] = tick
-        r = s.get(url, params=params)
-        print(tick, r.from_cache)
-        if r.status_code != 200:
-            print(r)
-        else:
-            df = pd.read_csv(io.StringIO(r.text), parse_dates=['date'])
-            dfs.append(df)
+        stale = True
+        exists = False
+        if r.exists(tick):
+            print(tick, 'From cache')
+            # Get data / timestamp
+            mjson = r.get(tick)
+            mjson = json.loads(mjson)
+            # Check timestamp
+            if check_time(mjson):  # True = Out of date
+                exists = True
+            else:
+                # Otherwise append response
+                dfs.append(to_pandas(mjson))
+                stale = False
+
+        if stale:
+            print(tick, 'Fetching from Qunadl')
+            params['ticker'] = ticker
+            response = requests.get(url, params=params)
+            # If we get an error code, print it
+            if response.status_code != 200:
+                print(datetime.datetime.now(), tick, r)
+                # Fall back to stale response if we can't fetch new response
+                if exists:
+                    dfs.append(to_pandas(mjson))
+            else:
+                mjson = response.json()
+                mjson['time'] = time.strftime("%Y/%m/%d")
+                r.set(tick, json.dumps(mjson))
+                dfs.append(to_pandas(mjson))
+
+    # Return based on the number of tickers fetched
     if len(dfs) == 0:
-        print(ticker, 'Failed to process')
+        return
     elif len(dfs) == 1:
         return dfs[0]
     else:
-        return pd.concat(dfs, axis=0, ignore_index=True)
+        return pd.concat(dfs, axis=0)
+
+
+def to_pandas(json):
+    df = pd.DataFrame(json['datatable']['data'], columns=[d['name'] for d in json['datatable']['columns']])
+    df.date = pd.to_datetime(df.date)
+    return df
+
+
+def check_time(json):
+    dt = datetime.datetime.strptime(json['time'], "%Y/%m/%d")
+    return datetime.datetime.now() > dt + datetime.timedelta(days=1)
 
 
 def to_html(df):
