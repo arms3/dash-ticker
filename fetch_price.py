@@ -86,7 +86,7 @@ def update_used(ticker):
 
 # Function to delete less popular keys
 def clear_less_used(used):
-    TO_KEEP = 100
+    TO_KEEP = 800
     sort = sorted(used.items(), key=lambda kv: kv[1], reverse=True)
     i = len(sort) - 1
     dels = []
