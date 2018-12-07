@@ -7,14 +7,15 @@ import redis
 import json
 import requests_cache
 
-requests_cache.install_cache()
+
+requests_cache.install_cache(expire_after=datetime.timedelta(days=5))
 r = redis.from_url(os.environ.get("REDIS_URL"))
 print(r)
 
 
 def fetch(ticker='AAPL'):
     API_KEY = os.environ.get('QUANDL_API_KEY')
-    params = {'api_key': API_KEY, 'rows': 1000}
+    params = {'api_key': API_KEY, 'rows': '500'}
     url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json'
 
     dfs = []
@@ -26,6 +27,8 @@ def fetch(ticker='AAPL'):
             # Get data / timestamp
             mjson = r.get(tick)
             mjson = json.loads(mjson)
+            # Update times used
+            update_used(tick)
             # Check timestamp
             if check_time(mjson):  # True = Out of date
                 exists = True
@@ -38,6 +41,7 @@ def fetch(ticker='AAPL'):
             print(tick, 'Fetching from Qunadl')
             params['ticker'] = ticker
             response = requests.get(url, params=params)
+            print(response)
             # If we get an error code, print it
             if response.status_code != 200:
                 print(datetime.datetime.now(), tick, r)
@@ -47,8 +51,12 @@ def fetch(ticker='AAPL'):
             else:
                 mjson = response.json()
                 mjson['time'] = time.strftime("%Y/%m/%d")
-                r.set(tick, json.dumps(mjson))
                 dfs.append(to_pandas(mjson))
+                # Would be better to not set key in the first place
+                # Set remote cache, update used and delete less update_used
+                r.set(tick, json.dumps(mjson))
+                used = update_used(tick)
+                clear_less_used(used)
 
     # Return based on the number of tickers fetched
     if len(dfs) == 0:
@@ -57,6 +65,30 @@ def fetch(ticker='AAPL'):
         return dfs[0]
     else:
         return pd.concat(dfs, axis=0)
+
+
+# Function to track how many times a key is used
+def update_used(ticker):
+    used = json.loads(r.get('_used_times'))
+    if ticker in used:
+        used[ticker] = used[ticker] + 1
+    else:
+        used[ticker] = 1
+    r.set('_used_times', json.dumps(used))
+    return used
+
+
+# Function to delete less popular keys
+def clear_less_used(used):
+    TO_KEEP = 20
+    sort = sorted(used.items(), key=lambda kv: kv[1], reverse=True)
+    i = len(sort) - 1
+    dels = []
+    while i >= TO_KEEP and i >= 0:
+        dels.append(sort[i][0])
+        i -= 1
+    if len(dels) > 0:
+        r.delete(*dels)
 
 
 def to_pandas(json):

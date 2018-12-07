@@ -7,6 +7,7 @@ import dash_table
 from dash.dependencies import Input, Output
 import os
 from random import randint
+import time
 
 external_stylesheets = ['https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css',
                         'https://fonts.googleapis.com/css?family=Montserrat:\
@@ -53,12 +54,15 @@ app.layout = html.Div(children=[
 def update_chart(input_value):
     ticker = ','.join(input_value)
     df = fetch(ticker)
-    figure = {
-        'data': [{'x': df[df.ticker == val].date, 'y':
-                  df[df.ticker == val].adj_close, 'type': 'line', 'name': val}
-                 for val in input_value]
-    }
-    return figure
+    if df is None:
+        return
+    else:
+        figure = {
+            'data': [{'x': df[df.ticker == val].date, 'y':
+                      df[df.ticker == val].adj_close, 'type': 'line', 'name': val}
+                     for val in input_value]
+        }
+        return figure
 
 
 @app.callback(
@@ -66,10 +70,13 @@ def update_chart(input_value):
     [Input(component_id='example-dropdown', component_property='value')]
 )
 def update_table(input_value):
-    # time.sleep(1)
+    time.sleep(1)
     ticker = ','.join(input_value)
     df = fetch(ticker)
-    return df.to_dict("rows")
+    if df is None:
+        return
+    else:
+        return df.to_dict("rows")
 
 
 if __name__ == '__main__':
