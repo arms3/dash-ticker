@@ -3,7 +3,6 @@ requests==2.20.0
 pandas
 numpy
 redis
-json
 dash
 dash_core_components
 dash_html_components
