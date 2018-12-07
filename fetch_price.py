@@ -8,15 +8,16 @@ import json
 import requests_cache
 
 
-requests_cache.install_cache(expire_after=datetime.timedelta(days=5))
+requests_cache.install_cache(expire_after=datetime.timedelta(days=1))
 r = redis.from_url(os.environ.get("REDIS_URL"))
 print(r)
 
 
 def fetch(ticker='AAPL'):
-    API_KEY = os.environ.get('QUANDL_API_KEY')
-    params = {'api_key': API_KEY, 'rows': '500'}
-    url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json'
+    if ticker == '' : return
+    API_KEY = os.environ.get('ALPHA_API_KEY')
+    params = {'apikey': API_KEY}
+    url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED'
 
     dfs = []
     for tick in ticker.split(','):
@@ -34,26 +35,31 @@ def fetch(ticker='AAPL'):
                 exists = True
             else:
                 # Otherwise append response
-                dfs.append(to_pandas(mjson))
+                dfs.append(to_pandas(mjson, tick))
                 stale = False
 
         if stale:
-            print(tick, 'Fetching from Qunadl')
-            params['ticker'] = ticker
+            print(tick, 'Fetching from AlphaVantage')
+            params['symbol'] = tick
             response = requests.get(url, params=params)
-            print(response)
+            print(response, response.json().keys())
             # If we get an error code, print it
-            if response.status_code != 200:
-                print(datetime.datetime.now(), tick, r)
+            if response.status_code != 200 or 'Time Series (Daily)' not in response.json().keys():
+                print(datetime.datetime.now(), tick)
+                if 'Error Message' in response.json().keys():
+                    print(response.json()['Error Message'])
+                elif 'Note' in response.json().keys():
+                    print(response.json()['Note'])
                 # Fall back to stale response if we can't fetch new response
                 if exists:
-                    dfs.append(to_pandas(mjson))
+                    dfs.append(to_pandas(mjson, tick))
             else:
                 mjson = response.json()
                 mjson['time'] = time.strftime("%Y/%m/%d")
-                dfs.append(to_pandas(mjson))
+                dfs.append(to_pandas(mjson, tick))
                 # Would be better to not set key in the first place
                 # Set remote cache, update used and delete less update_used
+                print('Updating redis cache')
                 r.set(tick, json.dumps(mjson))
                 used = update_used(tick)
                 clear_less_used(used)
@@ -80,7 +86,7 @@ def update_used(ticker):
 
 # Function to delete less popular keys
 def clear_less_used(used):
-    TO_KEEP = 20
+    TO_KEEP = 100
     sort = sorted(used.items(), key=lambda kv: kv[1], reverse=True)
     i = len(sort) - 1
     dels = []
@@ -88,12 +94,21 @@ def clear_less_used(used):
         dels.append(sort[i][0])
         i -= 1
     if len(dels) > 0:
+        print('Pruning', dels)
         r.delete(*dels)
 
 
-def to_pandas(json):
-    df = pd.DataFrame(json['datatable']['data'], columns=[d['name'] for d in json['datatable']['columns']])
+def to_pandas(json, tick):
+    # df = pd.DataFrame(json['datatable']['data'], columns=[d['name'] for d in json['datatable']['columns']])
+    # df.date = pd.to_datetime(df.date)
+
+    # Alpha vantage version
+    df = pd.DataFrame(json['Time Series (Daily)']).T
+    df.reset_index(inplace=True)
+    df.columns = ['date', 'open', 'high', 'low', 'close', 'adj_close', 'vol',
+                  'dividend_amount', 'split coefficient']
     df.date = pd.to_datetime(df.date)
+    df['ticker'] = tick
     return df
 
 

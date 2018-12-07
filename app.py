@@ -70,7 +70,6 @@ def update_chart(input_value):
     [Input(component_id='example-dropdown', component_property='value')]
 )
 def update_table(input_value):
-    time.sleep(1)
     ticker = ','.join(input_value)
     df = fetch(ticker)
     if df is None:
