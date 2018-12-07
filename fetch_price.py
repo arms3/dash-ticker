@@ -106,7 +106,7 @@ def to_pandas(json, tick):
     df = pd.DataFrame(json['Time Series (Daily)']).T
     df.reset_index(inplace=True)
     df.columns = ['date', 'open', 'high', 'low', 'close', 'adj_close', 'vol',
-                  'dividend_amount', 'split coefficient']
+                  'dividend_amount', 'split_coefficient']
     df.date = pd.to_datetime(df.date)
     df['ticker'] = tick
     return df
