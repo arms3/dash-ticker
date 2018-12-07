@@ -9,6 +9,7 @@ import json
 r = redis.from_url(os.environ.get("REDIS_URL"))
 print(r)
 
+
 def fetch(ticker='AAPL'):
     API_KEY = os.environ.get('QUANDL_API_KEY')
     params = {'api_key': API_KEY}

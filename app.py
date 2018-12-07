@@ -4,7 +4,6 @@ import dash_html_components as html
 from fetch_price import fetch, get_tickers
 import dash_table
 from dash.dependencies import Input, Output
-import time
 
 external_stylesheets = ['https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css',
                         'https://fonts.googleapis.com/css?family=Montserrat:\
@@ -62,7 +61,7 @@ def update_chart(input_value):
     [Input(component_id='example-dropdown', component_property='value')]
 )
 def update_table(input_value):
-    time.sleep(1)
+    # time.sleep(1)
     ticker = ','.join(input_value)
     df = fetch(ticker)
     return df.to_dict("rows")
