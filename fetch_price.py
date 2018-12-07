@@ -5,14 +5,16 @@ import time
 import datetime
 import redis
 import json
+import requests_cache
 
+requests_cache.install_cache()
 r = redis.from_url(os.environ.get("REDIS_URL"))
 print(r)
 
 
 def fetch(ticker='AAPL'):
     API_KEY = os.environ.get('QUANDL_API_KEY')
-    params = {'api_key': API_KEY}
+    params = {'api_key': API_KEY, 'rows': 1000}
     url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json'
 
     dfs = []
