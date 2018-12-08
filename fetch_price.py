@@ -57,8 +57,8 @@ def fetch(ticker='AAPL'):
                 mjson = response.json()
                 mjson['time'] = time.strftime("%Y/%m/%d")
                 dfs.append(to_pandas(mjson, tick))
+                # Set remote cache, update used and delete least used
                 # Would be better to not set key in the first place
-                # Set remote cache, update used and delete less update_used
                 print('Updating redis cache')
                 r.set(tick, json.dumps(mjson), ex=60*60*24*2)  # expire keys after 2 days
                 used = update_used(tick)

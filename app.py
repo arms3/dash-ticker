@@ -21,6 +21,7 @@ df = fetch('AAPL')
 ticks = get_tickers()
 
 app.layout = html.Div([
+
     # Navbar
     html.Nav(children=[
         html.Div([
@@ -29,8 +30,9 @@ app.layout = html.Div([
         ], className='container')
     ], className="navbar navbar-inverse navbar-static-top"),
 
+    # Main container
     html.Div([
-
+        # Stock selector dropdown
         html.H1('Stock Price Explorer'),
         dcc.Dropdown(
             id='example-dropdown',
@@ -39,6 +41,7 @@ app.layout = html.Div([
             multi=True,
         ),
 
+        # Chart
         dcc.Graph(
             id='example-graph',
             figure={
@@ -46,6 +49,7 @@ app.layout = html.Div([
             }
         ),
 
+        # Detailed table for selected stocks
         dash_table.DataTable(
             id='table',
             columns=[{"name": i, "id": i} for i in df.columns],
@@ -54,12 +58,12 @@ app.layout = html.Div([
             style_cell={'textAlign': 'left', 'padding': '5px',
                         'font-family': 'Montserrat'},
             style_table={
-                'maxHeight': '350px',
-                # 'overflowY': 'scroll'
+                'maxHeight': '300px',
+                'overflowY': 'scroll',
             }
         ),
 
-        # Hidden div inside the app that stores the intermediate value
+        # Hidden div inside the app that stores the intermediate data
         html.Div(id='intermediate-value', style={'display': 'none'}),
     ], className="container"),
 ])
@@ -70,7 +74,7 @@ app.layout = html.Div([
     [Input(component_id='example-dropdown', component_property='value')]
 )
 def fetch_intermediate(value):
-    # some expensive clean data step
+    # single fetch call for both table and chart
     if value == '':
         return
     ticker = ','.join(value)
@@ -78,8 +82,6 @@ def fetch_intermediate(value):
     if df is None:
         return
     else:
-        # more generally, this line would be
-        # json.dumps(cleaned_df)
         return df.to_json(date_format='iso', orient='split')
 
 
