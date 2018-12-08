@@ -9,9 +9,9 @@ import os
 from random import randint
 import pandas as pd
 
-external_stylesheets = ['https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css',
-                        'https://fonts.googleapis.com/css?family=Montserrat:\
-                         400,700']
+external_stylesheets = [
+    'https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css',
+    'https://fonts.googleapis.com/css?family=Montserrat:400,700']
 server = flask.Flask(__name__)
 server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
 app = dash.Dash(__name__, server=server,
@@ -20,8 +20,7 @@ df = fetch('AAPL')
 ticks = get_tickers()
 
 app.layout = html.Div(children=[
-    html.H1('Stock Price Display'),
-    html.Label('Select Stock: '),
+    html.H1('Stock Price Explorer'),
     dcc.Dropdown(
         id='example-dropdown',
         options=[{'label': r[2], 'value': r[0]} for r in ticks.values],
@@ -43,13 +42,13 @@ app.layout = html.Div(children=[
         style_cell={'textAlign': 'left', 'padding': '5px',
                     'font-family': 'Montserrat'},
         style_table={
-            'maxHeight': '300px',
-            'overflowY': 'scroll'
+            'maxHeight': '350px',
+            # 'overflowY': 'scroll'
         }
     ),
     # Hidden div inside the app that stores the intermediate value
     html.Div(id='intermediate-value', style={'display': 'none'}),
-])
+], className="container")
 
 
 @app.callback(
@@ -75,6 +74,8 @@ def fetch_intermediate(value):
     [Input(component_id='intermediate-value', component_property='children')]
 )
 def update_chart(input_value):
+    if input_value is None:
+        return
     df = pd.read_json(input_value, orient='split')
     tickers = list(df.ticker.unique())
     if df is None:
@@ -93,6 +94,8 @@ def update_chart(input_value):
     [Input(component_id='intermediate-value', component_property='children')]
 )
 def update_table(input_value):
+    if input_value is None:
+        return
     df = pd.read_json(input_value, orient='split')
     if df is None:
         return
