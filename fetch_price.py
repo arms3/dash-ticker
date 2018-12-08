@@ -109,6 +109,8 @@ def to_pandas(json, tick):
                   'dividend_amount', 'split_coefficient']
     df.date = pd.to_datetime(df.date)
     df['ticker'] = tick
+    df = df[['ticker', 'date', 'open', 'high', 'low', 'close', 'adj_close',
+             'vol']]
     return df
 
 
